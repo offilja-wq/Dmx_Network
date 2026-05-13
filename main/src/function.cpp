@@ -15,7 +15,7 @@ void begin()
     WiFi.mode(WIFI_STA);
     esp_wifi_set_channel(NETWORK_CHANNEL, WIFI_SECOND_CHAN_NONE);
     WiFi.setSleep(false);
-    
+
     if (esp_now_init() != ESP_OK)
         return;
 
@@ -24,63 +24,62 @@ void begin()
     broadcastPeer.encrypt = false;
     memcpy(broadcastPeer.peer_addr, BROADCAST_ADDRESS, sizeof(BROADCAST_ADDRESS));
 
-    if ((esp_now_add_peer(&broadcastPeer) != ESP_OK )|| (esp_now_init() != ESP_OK))
+    if ((esp_now_add_peer(&broadcastPeer) != ESP_OK) || (esp_now_init() != ESP_OK))
         return;
 
     WiFi.macAddress(mac);
 
     esp_now_register_recv_cb([](const uint8_t *mac, const uint8_t *data, int len)
-                             {handleReceive(mac, data, len); });
-
+                             { handleReceive(mac, data, len); });
 
     // uart_set_pin(1, MAX485_DI, MAX485_RO, 18, 19); // Def main pins
 
     pinMode(MAX485_MODE_PIN, OUTPUT);
     pinMode(15, OUTPUT);
 
-    dmx.init(512, VIRTUAL_MAX485_MODE_PIN); // New
+    dmx.init(512, MAX485_MODE_PIN); // New
 
     display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
 }
 
 void setMode(MODE input)
 {
-    if (currentMode == input)
-        return;
-    
-    digitalWrite(MAX485_MODE_PIN, input);
+    // PACKET local;
 
-    // DMXSerial.init(input ? DMXReceiver : DMXController); // Officially, this would be an initialisation
+    // for (int i = 1; i <= 512; i++)
+    // {
+    //     // DMXSerial.write(i, packet->data[i]); // Arduino based
+    //     dmx.write(i, local.data[i]);
+    // }
+
+    // dmx.update();
 
     currentMode = input;
 }
 
 void switchMode()
-{    
+{
     MODE Newmode = (TRANSMITTER == currentMode ? RECEIVER : TRANSMITTER);
 
-    digitalWrite(MAX485_MODE_PIN, (TRANSMITTER == currentMode ? RECEIVER : TRANSMITTER));
-
-    // DMXSerial.init(TRANSMITTER == currentMode ? DMXReceiver : DMXController);
+    // DMXSerial.init(TRANSMITTER == currentMode ? DMXReceiver : DMXController); // Arduino based
 
     currentMode = (currentMode ? RECEIVER : TRANSMITTER);
 }
 
 void handleReceive(const uint8_t *mac, const uint8_t *data, int len)
-{    
+{
     if ((currentMode != RECEIVER) || (sizeof(PACKET) != len))
         return;
-    
+
     PACKET *packet = (PACKET *)data;
 
     if ((packet->mode == TRANSMITTER) && (packet->universe == DisplayMenu.liveUniverse))
     {
         for (int i = 1; i <= 512; i++)
         {
-            // DMXSerial.write(i, packet->data[i]);
+            // DMXSerial.write(i, packet->data[i]); // Arduino based
             dmx.write(i, packet->data[i]);
         }
-
         dmx.update();
     }
 }
@@ -91,7 +90,7 @@ void handleSend()
         return;
 
     PACKET Newpacket;
-    
+
     Newpacket.mode = currentMode;
     Newpacket.universe = DisplayMenu.liveUniverse;
 
@@ -99,7 +98,7 @@ void handleSend()
 
     for (int i = 1; i <= 512; i++)
     {
-        // Newpacket.data[i] = DMXSerial.read(i);
+        // Newpacket.data[i] = DMXSerial.read(i); // Arduino based
         Newpacket.data[i] = dmx.read(i);
     }
 
@@ -121,16 +120,14 @@ void updateDisplay()
     display.clearDisplay();
     display.setTextColor(SSD1306_WHITE);
     display.setTextSize(2);
-    display.setCursor(0,0);
+    display.setCursor(0, 0);
 
     if (digitalRead(ENCODER_A_PIN))
     {
-
     }
-    
+
     if (digitalRead(ENCODER_B_PIN))
     {
-        
     }
 
     if (digitalRead(ENCODER_KNOB))
@@ -173,8 +170,8 @@ void updateDisplay()
     {
         display.print(F("NO DATA"));
     }
-    
-    display.drawRoundRect(((SCREEN_WIDTH)-(SCREEN_WIDTH / 3)), 0, (SCREEN_WIDTH / 3), SCREEN_HEIGHT, 4, SSD1306_WHITE);
+
+    display.drawRoundRect(((SCREEN_WIDTH) - (SCREEN_WIDTH / 3)), 0, (SCREEN_WIDTH / 3), SCREEN_HEIGHT, 4, SSD1306_WHITE);
 
     display.setTextSize(3);
     display.setCursor(100, 4);
